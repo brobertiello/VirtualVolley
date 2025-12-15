@@ -1,0 +1,198 @@
+% =========================================================
+% Virtual Volley – Final Report (IEEE Conference Format)
+% =========================================================
+
+\documentclass[conference]{IEEEtran}
+
+% ---------------- Packages ----------------
+\usepackage[T1]{fontenc}
+\usepackage{cite}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{setspace}
+\hypersetup{hidelinks}
+
+% ---------------- Title ----------------
+\title{Virtual Volley: A Virtual Reality Volleyball Training and Immersive Replay System}
+
+\author{
+\IEEEauthorblockN{Brandon Robertiello}
+\IEEEauthorblockA{
+University of Oklahoma\\
+Email: br@ou.edu
+}
+}
+
+\begin{document}
+\maketitle
+
+% =========================================================
+\begin{abstract}
+Volleyball skill development requires precise motor control, timing, and spatial awareness, all of which are traditionally learned through repeated in-person practice with teammates and coaching support. For many learners, consistent access to courts, structured drills, and expert feedback is limited or unavailable. Existing instructional tools, such as 2D video analysis, fail to convey depth, perspective, and interactive feedback necessary for mastering key skills such as serve receive and spike receive. This paper presents \textit{Virtual Volley}, a virtual reality (VR) volleyball training and immersive replay system developed for the Meta Quest 3 using Unity, OpenXR, and the XR Interaction Toolkit. The system provides a fully immersive volleyball court environment, realistic physics-based ball interactions, and a collection of interactive training mini-games focused on receiving scenarios. A modular user interface supports navigation, user calibration, and comfort settings, while an immersive replay module enables multi-perspective viewing of volleyball scenes. The system demonstrates stable real-time performance on standalone VR hardware and establishes a foundation for future replay analytics and data-driven training. Although formal user testing was not completed due to time constraints, the project illustrates the potential of VR as an accessible and effective platform for volleyball training and skill acquisition.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Virtual Reality, Sports Training, Volleyball, XR Interaction Toolkit, Physics Simulation, Immersive Replay
+\end{IEEEkeywords}
+
+% =========================================================
+\section{Introduction}
+
+Volleyball is a fast-paced sport that demands strong coordination between perception, decision-making, and motor execution. Skills such as serve receive, free ball passing, and spike defense require athletes to accurately judge ball trajectory, react within milliseconds, and maintain correct body and platform positioning. These skills are traditionally learned through repetitive drills under the guidance of coaches and teammates. However, access to training environments is often constrained by time, cost, facility availability, and the need for multiple participants.
+
+For solo learners or beginners, these barriers significantly slow skill development. Instructional videos and televised match footage are commonly used as supplemental resources, but such tools lack interactivity and depth perception. As a result, learners must mentally reconstruct three-dimensional motion and timing from two-dimensional representations, which limits their effectiveness. Prior research has shown that immersive virtual reality environments can enhance spatial understanding and motor learning by placing users directly within simulated scenarios \cite{richlan_vr_olympic_2024}. Additionally, volleyball-specific motion analysis research highlights the importance of accurate three-dimensional movement representation when analyzing and training sport-specific actions such as spikes and receives \cite{liu_pose_refinement_2024}.
+
+Advances in standalone VR hardware, such as the Meta Quest 3, enable immersive experiences without external tracking systems or high-end computers. This accessibility makes VR a compelling platform for sports training applications. Motivated by these factors, this project explores the use of VR as a medium for volleyball skill training and analysis through the development of \textit{Virtual Volley}.
+
+The goals of this project are threefold: (1) to create a realistic and immersive volleyball environment optimized for standalone VR hardware, (2) to design interactive training experiences that allow users to practice core receiving skills in isolation, and (3) to provide an immersive replay framework that supports spatial and tactical understanding through multi-perspective viewing.
+
+% =========================================================
+\section{Methods / System Design}
+
+\subsection{Hardware and Software Stack}
+
+The \textit{Virtual Volley} system was developed for the Meta Quest 3, a standalone VR headset that integrates inside-out tracking, motion controllers, and onboard computation. Development was performed using Unity (2022/2023 LTS) with C\# as the primary programming language. VR input, interaction, and locomotion were implemented using the XR Interaction Toolkit in conjunction with OpenXR, ensuring compatibility with Quest hardware and standardized XR input mappings.
+
+To accelerate environment development, third-party 3D assets were incorporated, including a low-poly volleyball model and a VR-ready volleyball court \cite{volleyball_ball_model, vr_volleyball_court}. These assets were optimized to meet mobile VR performance constraints.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.8\linewidth]{headset.png}
+\caption{Meta Quest 3 headset used as the standalone VR hardware platform for Virtual Volley.}
+\label{fig:headset}
+\end{figure}
+
+\subsection{System Architecture}
+
+The system architecture follows a modular design philosophy, separating functionality into three primary subsystems: the Core VR Framework, the Training Module, and the Immersive Replay Module. The Core VR Framework manages the XR rig, locomotion, controller input, physics integration, and persistent user settings. The Training Module contains scenario logic, spawner systems, and feedback mechanisms, while the Replay Module manages camera perspectives, playback control, and scene visualization.
+
+A persistent XR rig is maintained across additive scene loads, allowing seamless transitions between menus, training environments, and replay scenes without resetting user state. This approach reduces initialization overhead and ensures consistent interaction behavior throughout the application.
+
+State management is implemented through a singleton \texttt{GameManager} pattern that maintains the current training scenario (Free Play, Free Balls, Serve Receive, or Spike Receive). Scene transitions are handled via an event-driven architecture, where components subscribe to state change events, enabling decoupled communication between UI elements, launcher systems, and visual indicators. This design facilitates easy extension of training scenarios without modifying core framework code.
+
+Code organization follows a clear separation between runtime scripts and editor utilities. Runtime components are organized by functional domain (Core, UI, VR, Interactables), while editor scripts provide automated setup and diagnostic tools. Manager classes coordinate related subsystems, such as the \texttt{BallLauncherManager} which orchestrates multiple launcher instances and handles input routing. This modular structure supports maintainability and enables independent testing of system components.
+
+Input handling leverages Unity's Input System package integrated with the XR Interaction Toolkit. Controller actions are mapped through \texttt{InputActionReference} scriptable objects, allowing centralized configuration and runtime rebinding. The left controller's X button serves as the primary trigger for ball launchers, with input events routed through the \texttt{BallLauncherManager} to select and activate appropriate launcher instances based on the current training scenario.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{court.png}
+\caption{VR volleyball court environment used for training and immersive replay scenarios \cite{vr_volleyball_court}.}
+\label{fig:court}
+\end{figure}
+
+\subsection{Physics and Interaction Design}
+
+Realistic ball behavior is critical for effective volleyball training. The volleyball physics system uses a custom collision handler that applies force responses based on contact velocity, collision normals, and surface properties. Continuous collision detection was enabled to prevent tunneling during high-speed interactions such as spikes or serves.
+
+The implementation of continuous collision detection addresses a fundamental challenge in high-speed physics simulation: discrete collision detection can miss collisions when objects move faster than their size per frame. During spike receive scenarios, balls travel at velocities exceeding 12 m/s, creating scenarios where a ball could pass completely through a player's receiving platform or the net between physics update cycles. By enabling \texttt{CollisionDetectionMode.Continuous} on the volleyball's rigidbody, the physics engine performs sub-frame collision checks, ensuring accurate contact detection even at high velocities. This approach incurs additional computational cost but is essential for maintaining simulation accuracy during rapid interactions.
+
+Collider sizing presented another critical challenge. Initial implementation used default sphere collider radii that were smaller than the visual mesh, causing balls to visually overlap during collisions and creating a disconcerting effect where balls appeared to pass partially through each other. The system now dynamically calculates collider radius based on the visual mesh bounds, ensuring the collision representation matches the visual representation. This alignment is crucial for user trust in the simulation, as visual-physical mismatch breaks immersion and reduces training effectiveness.
+
+The volleyball physics parameters were tuned through iterative testing to achieve realistic behavior. The ball mass is set to 0.27 kg (standard volleyball mass), with air drag and angular drag coefficients of 0.5 to simulate air resistance and rotational damping. Bounciness is configured at 0.9 (on a 0-1 scale), while static and dynamic friction are minimized to 0.05 to allow smooth rolling and sliding on court surfaces. These values produce trajectories and bounce characteristics that closely match real volleyball behavior while maintaining stable simulation performance.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.6\linewidth]{ball.png}
+\caption{Low-poly volleyball model used for physics-based interaction and collision simulation \cite{volleyball_ball_model}.}
+\label{fig:ball}
+\end{figure}
+
+Arm and hand interactions are represented using simplified colliders attached to the controller-driven hand models. A dynamic ``flat platform'' approximation is used during ball contact to better emulate real receiving mechanics, ensuring predictable rebound behavior while maintaining responsiveness. 
+
+Audio feedback provides crucial haptic and temporal information about ball contact. Collision sounds are dynamically scaled based on impact force, with volume ranging from 25\% to 100\% of maximum based on collision intensity. Pitch variation (randomized between 0.9 and 1.1) prevents repetitive audio cues and enhances realism. The audio system uses 2D spatial blending to ensure consistent volume regardless of distance, maintaining clear feedback for training purposes.
+
+\subsection{User Interface and Calibration}
+
+The user interface is designed specifically for VR interaction, emphasizing readability, large hit targets, and minimal visual clutter. The application includes a Main Menu, Game Selection Menu, Training Settings Menu, and User Settings Menu. Calibration options allow users to adjust hand and shoulder offsets to better match their physical proportions, improving embodiment and comfort.
+
+The calibration system addresses individual anatomical variations that affect VR embodiment and interaction accuracy. Users can adjust shoulder anchor positions in three dimensions (typically ranging from -0.5 to +0.5 meters) to align virtual shoulders with their physical shoulder positions. Hand position offsets allow fine-tuning of controller-to-hand alignment, critical for accurate ball contact during receiving drills. Additionally, arm length parameters (upper arm and forearm, typically 0.1 to 0.5 meters) can be adjusted to match user proportions. These adjustments are applied in real-time to the point-of-view (POV) arms system, which uses primitive geometric shapes (cylinders for arms, spheres for hands) to provide visual feedback without the complexity of full skeletal animation. Proper calibration significantly improves users' ability to accurately position their receiving platform and judge ball trajectory.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{menus.png}
+\caption{In-VR user interface including main menu, training selection, and calibration settings for hand and shoulder offsets.}
+\label{fig:menus}
+\end{figure}
+
+Locomotion options include teleportation and smooth movement, allowing users to select comfort levels appropriate to their experience. These design decisions reflect best practices for VR usability and accessibility.
+
+\subsection{Training Module Design}
+
+Rather than implementing a strictly linear tutorial, the training system is structured as a collection of mini-games that simulate real volleyball receiving scenarios. This approach allows users to focus on specific skills while benefiting from repeated, controlled practice.
+
+The Free Ball Receive scenario introduces slow, lofted balls that emphasize platform angle control and soft touch. Spike Receive scenarios simulate rapid downward trajectories requiring quick reaction time and stable posture. Serve Receive scenarios incorporate lateral movement and varied ball speeds to train footwork and positioning. 
+
+Automated ball launchers provide consistent, repeatable training stimuli. The launcher system supports two trajectory types: arc shots for service line and free ball scenarios, and direct shots for net-height spike simulations. Each launcher is configurable with launch angle (typically 0-90 degrees) and power multiplier (typically 0.5-2.0x base speed). Arc launchers use a base horizontal speed of 8 m/s multiplied by the power setting, while direct launchers use a base speed of 12 m/s. Trajectory calculation applies trigonometric decomposition to determine horizontal and vertical velocity components, ensuring balls consistently reach target positions while accounting for gravity and air resistance. A three-second countdown system provides visual preparation time before each launch, displayed as a world-space text indicator above the launcher position. Launcher visibility is dynamically managed based on the active training scenario, reducing visual clutter and maintaining user focus.
+
+\subsection{Immersive Replay Module}
+
+The immersive replay module provides a foundation for spatial and tactical analysis by allowing users to view volleyball scenes from multiple perspectives, including sideline, overhead, and player point-of-view cameras. A timeline interface enables navigation through replay events. While full integration with real match data or animation pipelines was not completed, the modular design anticipates future expansion.
+
+% =========================================================
+\section{Results and Evaluation}
+
+\subsection{Performance}
+
+Performance optimization was a key consideration due to the constraints of standalone VR hardware. Rendering complexity was managed through asset optimization and efficient lighting configurations. During testing, the system consistently maintained frame rates between 72 and 90 frames per second on the Meta Quest 3, ensuring smooth interaction and minimizing motion discomfort.
+
+\subsection{Functional Outcomes}
+
+All core features function as intended. The volleyball physics system provides responsive and believable ball behavior. Training mini-games allow users to practice receiving skills with adjustable difficulty. UI navigation is consistent across scenes, and calibration settings enhance user comfort and immersion. Immersive audio and lighting further contribute to presence.
+
+\subsection{User Testing Status}
+
+A formal usability study was not conducted due to time limitations. Planned future evaluation includes assessing user comfort during extended sessions, measuring training effectiveness through performance metrics, and evaluating learnability of the replay interface without external guidance.
+
+\begin{table}[t]
+\centering
+\caption{Implementation Status Summary}
+\begin{tabular}{l c}
+\hline
+Component & Status \\
+\hline
+Volleyball Physics System & Complete \\
+Training Mini-Games & Complete \\
+UI and Calibration Menus & Complete \\
+Replay Framework & Partial \\
+Match Data Integration & Not Implemented \\
+Formal User Study & Not Completed \\
+\hline
+\end{tabular}
+\end{table}
+
+% =========================================================
+\section{Discussion}
+
+Despite successful implementation of core systems, several limitations remain. The replay module currently lacks integration with real-world match data or character animation pipelines, limiting its analytical depth. Training feedback is primarily experiential rather than quantitative, and the absence of formal user testing restricts conclusions about learning outcomes.
+
+The development process highlighted the importance of modular system design in VR applications. Realistic physics required extensive iteration, and UI development in VR proved more complex than traditional 2D interfaces. Performance constraints on standalone hardware strongly influenced design decisions, reinforcing the need for optimization-aware development practices.
+
+Future work will focus on expanding the replay module, incorporating animation and analytics, adding additional training scenarios, and conducting structured user studies to evaluate effectiveness and comfort.
+
+% =========================================================
+\section{Conclusion}
+
+This paper presented \textit{Virtual Volley}, a virtual reality volleyball training and immersive replay system designed for the Meta Quest 3. By combining realistic physics, interactive training mini-games, and a modular UI framework, the system addresses accessibility challenges inherent in traditional volleyball training. While further development is required to fully realize replay analytics and formal evaluation, the project demonstrates the viability of VR as a platform for sports skill acquisition and experiential learning.
+
+% =========================================================
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{99}
+
+\bibitem{volleyball_ball_model}
+TurboSquid, ``Generic Volleyball Ball LowPoly PBR 3D Model,'' 2024. [Online]. Available: \url{https://www.turbosquid.com/3d-models/generic-volleyball-ball-lowpoly-pbr-3d-model-2450512}
+
+\bibitem{vr_volleyball_court}
+TurboSquid, ``3D VR Volleyball Court,'' 2024. [Online]. Available: \url{https://www.turbosquid.com/3d-models/3d-vr-volleyball-court-2153422}
+
+\bibitem{liu_pose_refinement_2024}
+Y. Liu, X. Cheng, and T. Ikenaga, ``Motion-aware and data-independent model based multi-view 3D pose refinement for volleyball spike analysis,'' \emph{Multimedia Tools and Applications}, vol. 83, pp. 22995--23018, 2024, doi: 10.1007/s11042-023-16369-8.
+
+\bibitem{richlan_vr_olympic_2024}
+F. Richlan and J. Braid, ``Virtual reality training in Olympic sports: Promises and pitfalls,'' \emph{In-Mind Magazine}, Jun. 2024. [Online]. Available: \url{https://www.in-mind.org/article/virtual-reality-training-in-olympic-sports-promises-and-pitfalls}
+
+\end{thebibliography}
+
+\end{document}
