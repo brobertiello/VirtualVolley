@@ -144,11 +144,3 @@ The project includes several editor scripts for setup and configuration:
 
 Access these via: **`VirtualVolley`** menu in Unity's menu bar.
 
-## License
-
-[Add your license information here]
-
-## Contributing
-
-[Add contribution guidelines if applicable]
-
